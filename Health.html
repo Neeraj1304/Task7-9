@@ -1,0 +1,68 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include "MAX30105.h"
+#include "heartRate.h"
+
+const char* ssid = "YOUR_WIFI_NAME";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+WebServer server(80);
+MAX30105 particleSensor;
+
+float beatsPerMinute;
+int beatAvg;
+int spo2 = 98;   // Dummy SpO2 (for demo if not calculating fully)
+
+unsigned long lastBeat = 0;
+
+void handleRoot() {
+  String page = "<!DOCTYPE html><html><head>";
+  page += "<meta http-equiv='refresh' content='2'>";
+  page += "<title>Health Dashboard</title></head><body>";
+  page += "<h2>ESP32 Health Vitals</h2>";
+  page += "<p><b>Heart Rate:</b> " + String(beatAvg) + " BPM</p>";
+  page += "<p><b>SpO2:</b> " + String(spo2) + " %</p>";
+  page += "</body></html>";
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected to WiFi");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) {
+    Serial.println("MAX30102 not found!");
+    while (1);
+  }
+
+  particleSensor.setup();
+}
+
+void loop() {
+  server.handleClient();
+
+  long irValue = particleSensor.getIR();
+
+  if (checkForBeat(irValue) == true) {
+    long delta = millis() - lastBeat;
+    lastBeat = millis();
+    beatsPerMinute = 60 / (delta / 1000.0);
+    
+    if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+      beatAvg = beatsPerMinute;
+    }
+  }
+}
