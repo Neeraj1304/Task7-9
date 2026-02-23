@@ -1,0 +1,56 @@
+#include <DHT.h>
+
+// ===== Pin Definitions =====
+#define DHTPIN 4        // DHT11 OUT connected to GPIO4
+#define DHTTYPE DHT11
+
+#define IN1 26          // L293D IN1
+#define IN2 27          // L293D IN2
+
+float threshold = 30.0;   // Temperature threshold in °C
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+
+  dht.begin();
+
+  Serial.println("Temperature Based Fan Control Started");
+}
+
+void loop() {
+
+  float temperature = dht.readTemperature();
+
+  if (isnan(temperature)) {
+    Serial.println("DHT11 reading failed!");
+    delay(2000);
+    return;
+  }
+
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+
+  // ===== Fan Control Logic =====
+  if (temperature > threshold) {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    Serial.println("Fan ON");
+  } 
+  else {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    Serial.println("Fan OFF");
+  }
+
+  Serial.println("-----------------------");
+  delay(2000);
+}
